@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Flybody Simulation Control</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .main-container {
+            display: flex;
+            gap: 32px;
+            width: 100%;
+            max-width: 1200px;
+            min-width: 320px;
+            height: 80vh;
+            margin: 0 auto;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .video-container {
+            position: relative;
+            width: 960px;
+            height: 540px;
+            background: #000;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 0;
+        }
+        
+        #simulation-feed {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        .video-message {
+            color: #fff;
+            font-size: 2rem;
+            text-align: center;
+            z-index: 10;
+            position: absolute;
+            width: 100%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+        
+        .side-panel {
+            width: 300px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+            background: transparent;
+        }
+        
+        .panel {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .panel-header {
+            padding: 15px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .panel-header h3 {
+            margin: 0;
+            font-size: 16px;
+            color: #333;
+        }
+        
+        .panel-content {
+            padding: 15px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        
+        .stat-item {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #6c757d;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            z-index: 100;
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        
+        button {
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+            transition: background 0.3s;
+            width: 100%;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        .slider-container {
+            margin: 10px 0;
+        }
+        
+        .slider-container label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+        }
+        
+        .start-button {
+            grid-column: span 2;
+            background: #28a745;
+        }
+        
+        .start-button:hover {
+            background: #218838;
+        }
+        
+        .stop-button {
+            grid-column: span 2;
+            background: #dc3545;
+        }
+        
+        .stop-button:hover {
+            background: #a71d2a;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="video-container">
+            <img id="simulation-feed" src="{{ url_for('video_feed') }}" alt="Simulation Feed">
+            <div id="video-message" class="video-message">Press Start Simulation</div>
+            <div id="loading" class="loading" style="display:none;">Initializing simulation...</div>
+        </div>
+        
+        <div class="side-panel">
+            <!-- Actions Panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>Simulation Control</h3>
+                </div>
+                <div class="panel-content active">
+                    <div class="controls">
+                        <button class="start-button" onclick="startSimulation()">Start Simulation</button>
+                        <button class="stop-button" onclick="stopSimulation()">Stop Simulation</button>
+                        <button onclick="addFood()">Add Food</button>
+                        <button onclick="addSleepSpot()">Add Sleep</button>
+                        <button onclick="resetSimulation()">Reset</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Camera Controls Panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>Camera Controls</h3>
+                </div>
+                <div class="panel-content active">
+                    <div class="slider-container">
+                        <label for="camera-zoom">Zoom</label>
+                        <input type="range" id="camera-zoom" min="0.1" max="5" step="0.1" value="0.5">
+                    </div>
+                    <div class="slider-container">
+                        <label for="camera-rotation-x">Rotation X</label>
+                        <input type="range" id="camera-rotation-x" min="-180" max="180" value="-30">
+                    </div>
+                    <div class="slider-container">
+                        <label for="camera-rotation-y">Rotation Y</label>
+                        <input type="range" id="camera-rotation-y" min="-180" max="180" value="45">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Stats Panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>Fly Stats</h3>
+                </div>
+                <div class="panel-content active">
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value" id="energy-value">100</div>
+                            <div class="stat-label">Energy</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="hunger-value">0</div>
+                            <div class="stat-label">Hunger</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="sleepiness-value">0</div>
+                            <div class="stat-label">Sleepiness</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="mating-value">0</div>
+                            <div class="stat-label">Mating Desire</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+         // --- Performance Metrics ---
+         let lastFrameTime = null;
+         let frameCount = 0;
+         let fpsInterval = setInterval(() => {
+             if (frameCount > 0) {
+                 console.log(`[SIM] FPS: ${(frameCount).toFixed(1)}`);
+             }
+             frameCount = 0;
+         }, 1000);
+
+         // Add start simulation function
+         function startSimulation() {
+             console.log('[SIM] Start Simulation button pressed');
+             document.getElementById('video-message').style.display = 'none';
+             document.getElementById('loading').style.display = 'block';
+             fetch('/start')
+                 .then(response => response.json())
+                 .then(data => {
+                     if (data.status === "started") {
+                         console.log("[SIM] Simulation started successfully");
+                         document.getElementById('loading').style.display = 'none';
+                         document.getElementById('simulation-feed').style.display = 'block';
+                     } else if (data.status === "error" && data.message && data.message.includes('already running')) {
+                         console.warn("[SIM] Simulation already running, attempting to reconnect video feed.");
+                         document.getElementById('loading').style.display = 'none';
+                         document.getElementById('simulation-feed').style.display = 'block';
+                         const videoFeed = document.getElementById('simulation-feed');
+                         videoFeed.src = "{{ url_for('video_feed') }}?" + new Date().getTime();
+                     } else {
+                         console.error("[SIM] Failed to start simulation:", data.message);
+                         alert("Failed to start simulation: " + (data.message || 'Unknown error'));
+                         document.getElementById('video-message').style.display = 'block';
+                         document.getElementById('loading').style.display = 'none';
+                     }
+                 })
+                 .catch(error => {
+                     console.error("[SIM] Error starting simulation:", error);
+                     alert("Error starting simulation: " + error);
+                     document.getElementById('video-message').style.display = 'block';
+                     document.getElementById('loading').style.display = 'none';
+                 });
+         }
+
+         // Add stop simulation function
+         function stopSimulation() {
+             console.log('[SIM] Stop Simulation button pressed');
+             fetch('/stop')
+                 .then(response => response.json())
+                 .then(data => {
+                     if (data.status === "stopped") {
+                         console.log("[SIM] Simulation stopped.");
+                         document.getElementById('loading').style.display = 'none';
+                         document.getElementById('simulation-feed').style.display = 'none';
+                         document.getElementById('video-message').style.display = 'block';
+                     } else {
+                         alert("Failed to stop simulation: " + (data.message || 'Unknown error'));
+                     }
+                 })
+                 .catch(error => {
+                     alert("Error stopping simulation: " + error);
+                 });
+         }
+
+         // Add food and sleep functions
+         function addFood() {
+             console.log('[SIM] Add Food button pressed');
+             fetch('/add_food', {
+                 method: 'POST',
+                 headers: {
+                     'Content-Type': 'application/json',
+                 }
+             }).then(response => response.json())
+               .then(data => {
+                   if (data.success) {
+                       console.log('[SIM] Food added');
+                   }
+               });
+         }
+
+         function addSleepSpot() {
+             console.log('[SIM] Add Sleep button pressed');
+             fetch('/add_sleep_spot', {
+                 method: 'POST',
+                 headers: {
+                     'Content-Type': 'application/json',
+                 }
+             }).then(response => response.json())
+               .then(data => {
+                   if (data.success) {
+                       console.log('[SIM] Sleep spot added');
+                   }
+               });
+         }
+
+         function resetSimulation() {
+             console.log('[SIM] Reset Simulation button pressed');
+             fetch('/reset_simulation', {
+                 method: 'POST',
+                 headers: {
+                     'Content-Type': 'application/json',
+                 }
+             }).then(response => response.json())
+               .then(data => {
+                   if (data.success) {
+                       console.log('[SIM] Simulation reset');
+                   }
+               });
+         }
+
+         const loadingElement = document.getElementById('loading');
+         const videoFeed = document.getElementById('simulation-feed');
+         
+         // --- Video Feed FPS and Load Logging ---
+         videoFeed.onload = function() {
+             loadingElement.style.display = 'none';
+             if (lastFrameTime) {
+                 const now = performance.now();
+                 const delta = now - lastFrameTime;
+                 const fps = 1000 / delta;
+                 // Only log if reasonable (ignore first frame)
+                 if (fps < 100) {
+                     frameCount++;
+                 }
+                 lastFrameTime = now;
+             } else {
+                 lastFrameTime = performance.now();
+             }
+             console.log('[SIM] Frame loaded');
+         };
+         
+         videoFeed.onerror = function() {
+             loadingElement.style.display = 'block';
+             setTimeout(() => {
+                 videoFeed.src = "{{ url_for('video_feed') }}?" + new Date().getTime();
+             }, 1000);
+             console.error('[SIM] Video feed error, retrying...');
+         };
+
+         // Hide video feed and loading by default
+         document.getElementById('simulation-feed').style.display = 'none';
+         document.getElementById('loading').style.display = 'none';
+         document.getElementById('video-message').style.display = 'block';
+
+         // --- Camera Controls ---
+         const cameraZoom = document.getElementById('camera-zoom');
+         const cameraRotationX = document.getElementById('camera-rotation-x');
+         const cameraRotationY = document.getElementById('camera-rotation-y');
+
+         function updateCamera() {
+             const cameraState = {
+                 rotation: {
+                     x: parseFloat(cameraRotationX.value) * Math.PI / 180,
+                     y: parseFloat(cameraRotationY.value) * Math.PI / 180,
+                     z: 0
+                 },
+                 zoom: parseFloat(cameraZoom.value),
+                 pan: { x: 0, y: 0 }
+             };
+             fetch('/update_camera', {
+                 method: 'POST',
+                 headers: {
+                     'Content-Type': 'application/json',
+                 },
+                 body: JSON.stringify(cameraState)
+             }).then(() => {
+                 console.log(`[SIM] Camera updated: Zoom=${cameraState.zoom}, RotX=${cameraRotationX.value}, RotY=${cameraRotationY.value}`);
+             });
+         }
+
+         cameraZoom.addEventListener('input', updateCamera);
+         cameraRotationX.addEventListener('input', updateCamera);
+         cameraRotationY.addEventListener('input', updateCamera);
+
+         // Initialize with default camera position
+         updateCamera();
+    </script>
+</body>
+</html> 

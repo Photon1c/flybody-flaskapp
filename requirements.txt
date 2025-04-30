@@ -1,0 +1,8 @@
+numpy>=1.20.0
+dm-control>=1.0.9
+mujoco>=2.3.3
+opencv-python>=4.7.0
+flask>=2.0.0
+pyopengl>=3.1.6
+pyopengl-accelerate>=3.1.6
+glfw>=2.5.5 
