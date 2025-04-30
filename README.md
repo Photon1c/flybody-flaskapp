@@ -1,3 +1,11 @@
+# Flask App Enhancement
+
+![Flaskapp](/media/fly-body-first-demo.gif)
+
+Install flybody as usual, then install requirements.txt and run app.py for flask app.  
+
+
+
 # `flybody`: fruit fly body model for MuJoCo physics
 
 
